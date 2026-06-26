@@ -217,19 +217,34 @@ class PIIScannerApp(ctk.CTk):
                      text="폴더를 선택하고 검사를 시작하세요.",
                      text_color=MUTED, font=F(13)).pack(pady=40)
 
-    # ── 푸터 (선택/격리/삭제 + 요약 + 내보내기) ────────────
+    # ── 푸터 (대상폴더 + 선택/이동/삭제 + 요약 + 내보내기) ──
     def _build_footer(self):
-        # 1행: 선택 제어 + 격리/삭제
+        # 0행: 이동(격리) 대상 폴더 선택
+        dest = ctk.CTkFrame(self, fg_color="transparent")
+        dest.pack(fill="x", padx=24, pady=(2, 2))
+        ctk.CTkLabel(dest, text="이동 폴더", font=F(12, "bold"),
+                     text_color=TEXT).pack(side="left", padx=(0, 8))
+        self.dest_entry = ctk.CTkEntry(
+            dest, placeholder_text="이동할 별도 폴더를 선택하세요 (비우면 검사 폴더 안에 '_PII_격리_날짜' 자동 생성)",
+            font=F(12), fg_color=INPUT_BG, border_color=INPUT_BD, border_width=1,
+            text_color=TEXT, corner_radius=10, height=36)
+        self.dest_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ctk.CTkButton(dest, text="찾아보기", width=90, height=36, corner_radius=10,
+                      font=F(12), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+                      border_width=1, border_color=BORDER,
+                      command=self._browse_dest).pack(side="left")
+
+        # 1행: 선택 제어 + 이동/삭제
         act = ctk.CTkFrame(self, fg_color="transparent")
-        act.pack(fill="x", padx=24, pady=(2, 2))
+        act.pack(fill="x", padx=24, pady=(4, 2))
 
         self.select_all_var = ctk.BooleanVar(value=False)
-        self.select_all_cb = ctk.CTkCheckBox(
-            act, text="전체 선택", variable=self.select_all_var,
-            command=self._toggle_all, font=F(12), text_color=TEXT,
-            fg_color=ACCENT, hover_color=ACCENT_HV, checkmark_color="#ffffff",
-            border_color=INPUT_BD, corner_radius=5, border_width=2, state="disabled")
-        self.select_all_cb.pack(side="left")
+        self.select_all_btn = ctk.CTkButton(
+            act, text="전체 선택", width=96, height=34, corner_radius=10,
+            font=F(12, "bold"), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            border_width=1, border_color=BORDER,
+            state="disabled", command=self._toggle_all)
+        self.select_all_btn.pack(side="left")
         self.select_info = ctk.CTkLabel(act, text="", text_color=MUTED, font=F(12))
         self.select_info.pack(side="left", padx=10)
 
@@ -241,7 +256,7 @@ class PIIScannerApp(ctk.CTk):
             state="disabled", command=self._delete_selected)
         self.delete_btn.pack(side="right", padx=(8, 0))
         self.quar_btn = ctk.CTkButton(
-            act, text="선택 격리(이동)", width=130, height=38, corner_radius=10,
+            act, text="선택 파일 이동", width=130, height=38, corner_radius=10,
             font=F(13, "bold"),
             fg_color=SOFT, hover_color=SOFT_HV, text_color=SOFT_TX,
             border_width=1, border_color=SOFT_BD,
@@ -283,7 +298,7 @@ class PIIScannerApp(ctk.CTk):
         self.html_btn.configure(state="disabled")
         self.quar_btn.configure(state="disabled")
         self.delete_btn.configure(state="disabled")
-        self.select_all_cb.configure(state="disabled")
+        self.select_all_btn.configure(state="disabled", text="전체 선택")
         self.select_all_var.set(False)
         self.select_info.configure(text="")
         self.file_vars = {}
@@ -332,7 +347,7 @@ class PIIScannerApp(ctk.CTk):
 
         self.csv_btn.configure(state="normal")
         self.html_btn.configure(state="normal")
-        self.select_all_cb.configure(state="normal")
+        self.select_all_btn.configure(state="normal", text="전체 선택")
         self.file_vars = {}
         reveal = self.reveal_var.get()
 
@@ -396,11 +411,23 @@ class PIIScannerApp(ctk.CTk):
                 write_html(self.results, self.skipped, path, reveal)
                 messagebox.showinfo("완료", f"HTML 저장됨:\n{path}")
 
-    # ── 선택 / 격리 / 삭제 ─────────────────────────────────
+    # ── 대상 폴더 선택 ─────────────────────────────────────
+    def _browse_dest(self):
+        path = filedialog.askdirectory(title="이동할 별도 폴더 선택")
+        if path:
+            self.dest_entry.delete(0, "end")
+            self.dest_entry.insert(0, path)
+
+    # ── 선택 / 이동 / 삭제 ─────────────────────────────────
     def _toggle_all(self):
-        val = self.select_all_var.get()
+        """전체 선택 ↔ 선택 해제 토글 (버튼)."""
+        if not self.file_vars:
+            return
+        select = not self.select_all_var.get()   # 현재 상태의 반대로
+        self.select_all_var.set(select)
         for var in self.file_vars.values():
-            var.set(val)
+            var.set(select)
+        self.select_all_btn.configure(text="선택 해제" if select else "전체 선택")
         self._update_select_info()
 
     def _selected_paths(self):
@@ -408,10 +435,18 @@ class PIIScannerApp(ctk.CTk):
 
     def _update_select_info(self):
         n = len(self._selected_paths())
-        self.select_info.configure(text=f"{n}개 선택됨" if n else "")
+        total = len(self.file_vars)
+        self.select_info.configure(text=f"{n}/{total}개 선택됨" if n else "")
         state = "normal" if n else "disabled"
         self.quar_btn.configure(state=state)
         self.delete_btn.configure(state=state)
+        # 개별 체크 변화에 따라 전체선택 버튼 라벨 동기화
+        if total and n == total:
+            self.select_all_var.set(True)
+            self.select_all_btn.configure(text="선택 해제")
+        else:
+            self.select_all_var.set(False)
+            self.select_all_btn.configure(text="전체 선택")
 
     def _remove_from_results(self, paths):
         """결과 목록·선택 상태에서 처리된 파일 제거 후 다시 렌더링."""
@@ -424,22 +459,41 @@ class PIIScannerApp(ctk.CTk):
         paths = self._selected_paths()
         if not paths:
             return
-        ok = messagebox.askokcancel(
-            "격리 확인",
-            f"선택한 {len(paths)}개 파일을 격리 폴더로 '이동'합니다.\n\n"
-            f"· 원본 위치에서 사라지고, 검사 폴더 안의\n"
-            f"  '_PII_격리_(날짜시각)' 폴더로 옮겨집니다.\n"
-            f"· 복구가 필요하면 그 폴더에서 되돌릴 수 있습니다.\n\n"
-            f"계속하시겠습니까?")
-        if not ok:
+
+        dest = self.dest_entry.get().strip()
+        if dest:
+            # 지정한 별도 폴더로 이동 (없으면 생성)
+            try:
+                os.makedirs(dest, exist_ok=True)
+            except Exception as e:
+                messagebox.showerror(
+                    "오류", f"이동 폴더를 만들 수 없습니다:\n{dest}\n\n{e}")
+                return
+            if os.path.abspath(dest) == os.path.abspath(self.scanned_folder):
+                messagebox.showerror(
+                    "오류", "이동 폴더가 검사 폴더와 같습니다.\n다른 폴더를 선택하세요.")
+                return
+            detail = f"지정한 폴더로 이동됩니다:\n{dest}"
+        else:
+            detail = ("검사 폴더 안에 '_PII_격리_(날짜시각)' 폴더를\n"
+                      "자동으로 만들어 그곳으로 이동됩니다.")
+
+        if not messagebox.askokcancel(
+            "이동 확인",
+            f"선택한 {len(paths)}개 파일을 이동합니다.\n\n{detail}\n\n"
+            f"· 원본 위치에서는 사라집니다(하위 폴더 구조 유지).\n"
+            f"· 복구가 필요하면 이동된 폴더에서 되돌릴 수 있습니다.\n\n"
+            f"계속하시겠습니까?"):
             return
-        moved, errors, qroot = quarantine_files(paths, self.scanned_folder)
+
+        moved, errors, qroot = quarantine_files(
+            paths, self.scanned_folder, quarantine_root=(dest or None))
         self._remove_from_results([src for src, _ in moved])
-        msg = f"{len(moved)}개 파일을 격리했습니다.\n\n격리 폴더:\n{qroot}"
+        msg = f"{len(moved)}개 파일을 이동했습니다.\n\n이동 위치:\n{qroot}"
         if errors:
             msg += f"\n\n실패 {len(errors)}개:\n" + "\n".join(
                 f"· {os.path.basename(p)}: {e}" for p, e in errors[:5])
-        messagebox.showinfo("격리 완료", msg)
+        messagebox.showinfo("이동 완료", msg)
 
     def _delete_selected(self):
         paths = self._selected_paths()
