@@ -32,28 +32,29 @@ from pii_scanner import (
 )
 
 # ───────────────────────────────────────────────────────────
-# 팔레트 — 폴더 동기화 앱과 동일한 세이지 그린 톤
+# 팔레트 — 라이트 그레이 배경 + 흰색 카드(드롭 섀도) · 그린 포인트 유지
 # ───────────────────────────────────────────────────────────
-BG_BASE     = "#eef2ee"   # 페이지 배경 (페일 세이지)
-PANEL       = "#e7ede7"   # 카드 배경
-PANEL_IN    = "#f3f6f3"   # 입력/결과 영역 (밝게)
-INPUT_BG    = "#f7faf7"   # 입력칸
-CARD_IN     = "#eef3ee"   # 결과 파일 카드
+BG_BASE     = "#edeef1"   # 페이지 배경 (라이트 쿨 그레이)
+PANEL       = "#ffffff"   # 카드 배경 (흰색)
+PANEL_IN    = "#f6f7f9"   # 결과 스크롤 영역 (아주 옅은 회색)
+INPUT_BG    = "#f4f5f7"   # 입력칸
+CARD_IN     = "#ffffff"   # 결과 파일 카드 (흰색)
+SHADOW      = "#d6d9df"   # 카드 드롭 섀도 톤
 
-ACCENT      = "#6fa288"   # 세이지 그린 (선택/진행 표시)
+ACCENT      = "#6fa288"   # 세이지 그린 (선택/진행 표시 · 포인트 유지)
 ACCENT_HV   = "#5d8f76"
 SOFT        = "#dcebdd"   # 연한 그린 버튼 채움
 SOFT_HV     = "#cce0ce"
 SOFT_TX     = "#3f6b54"   # 연한 그린 버튼 글자
 SOFT_BD     = "#bcd6bf"
 
-LIGHT       = "#e6ece6"   # 보조 버튼 (찾아보기 등)
-LIGHT_HV    = "#d8e0d8"
+LIGHT       = "#eef0f3"   # 보조 버튼 (찾아보기 등) · 중립 그레이
+LIGHT_HV    = "#e1e4e9"
 
 TEXT        = "#39433c"
-MUTED       = "#7c887f"
-BORDER      = "#ccd5cc"
-INPUT_BD    = "#c3cdc3"
+MUTED       = "#8a909a"
+BORDER      = "#e7e9ee"
+INPUT_BD    = "#dfe2e7"
 
 SEV_COLOR   = {3: "#cf6f5f", 2: "#cf9a5a", 1: "#b59a4e"}
 DANGER_SOFT = "#f0ddd8"   # 삭제 버튼 (차분한 레드 톤)
@@ -97,9 +98,20 @@ class PIIScannerApp(ctk.CTk):
         self._build_footer()
 
     # ── 공통 패널 헬퍼 ──────────────────────────────────────
-    def _card(self, parent, **kw):
-        return ctk.CTkFrame(parent, fg_color=PANEL, corner_radius=14,
-                            border_width=1, border_color=BORDER, **kw)
+    def _shadow_card(self, parent, radius=16, fg=PANEL):
+        """흰 카드 + 우하단 드롭 섀도를 만든다.
+        같은 grid 셀에 섀도 프레임과 카드를 겹쳐, 카드를 좌상단으로
+        살짝 올려 섀도가 우·하단으로 비치게 한다.
+        반환: (holder=배치용 프레임, card=내용 담을 프레임)"""
+        holder = ctk.CTkFrame(parent, fg_color="transparent")
+        holder.grid_rowconfigure(0, weight=1)
+        holder.grid_columnconfigure(0, weight=1)
+        shadow = ctk.CTkFrame(holder, fg_color=SHADOW, corner_radius=radius)
+        shadow.grid(row=0, column=0, sticky="nsew", padx=(2, 0), pady=(3, 0))
+        card = ctk.CTkFrame(holder, fg_color=fg, corner_radius=radius,
+                            border_width=0)
+        card.grid(row=0, column=0, sticky="nsew", padx=(0, 3), pady=(0, 4))
+        return holder, card
 
     # ── 헤더 ────────────────────────────────────────────────
     def _build_header(self):
@@ -112,8 +124,8 @@ class PIIScannerApp(ctk.CTk):
 
     # ── 폴더 선택 ──────────────────────────────────────────
     def _build_folder_row(self):
-        card = self._card(self)
-        card.pack(fill="x", padx=24, pady=8)
+        holder, card = self._shadow_card(self)
+        holder.pack(fill="x", padx=24, pady=8)
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=16, pady=14)
 
@@ -139,8 +151,8 @@ class PIIScannerApp(ctk.CTk):
 
     # ── 옵션 (검출 유형 / 마스킹) ──────────────────────────
     def _build_options(self):
-        card = self._card(self)
-        card.pack(fill="x", padx=24, pady=8)
+        holder, card = self._shadow_card(self)
+        holder.pack(fill="x", padx=24, pady=8)
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=16, pady=14)
 
@@ -193,7 +205,7 @@ class PIIScannerApp(ctk.CTk):
 
         self.progress = ctk.CTkProgressBar(
             row, height=10, corner_radius=5, progress_color=ACCENT,
-            fg_color="#dde4dd")
+            fg_color="#dfe2e7")
         self.progress.pack(side="left", fill="x", expand=True, padx=16)
         self.progress.set(0)
 
@@ -203,11 +215,11 @@ class PIIScannerApp(ctk.CTk):
 
     # ── 결과 영역 ──────────────────────────────────────────
     def _build_results_area(self):
-        card = self._card(self)
-        card.pack(fill="both", expand=True, padx=24, pady=8)
+        holder, card = self._shadow_card(self)
+        holder.pack(fill="both", expand=True, padx=24, pady=8)
         self.results_frame = ctk.CTkScrollableFrame(
             card, fg_color=PANEL_IN, corner_radius=12,
-            scrollbar_button_color=BORDER, scrollbar_button_hover_color=MUTED)
+            scrollbar_button_color=INPUT_BD, scrollbar_button_hover_color=MUTED)
         self.results_frame.pack(fill="both", expand=True, padx=10, pady=10)
         self._placeholder()
 
@@ -359,9 +371,8 @@ class PIIScannerApp(ctk.CTk):
         self._update_select_info()
 
     def _render_file_card(self, path, findings, reveal):
-        card = ctk.CTkFrame(self.results_frame, fg_color=CARD_IN,
-                            corner_radius=12, border_width=1, border_color=BORDER)
-        card.pack(fill="x", padx=6, pady=6)
+        holder, card = self._shadow_card(self.results_frame, radius=12, fg=CARD_IN)
+        holder.pack(fill="x", padx=6, pady=6)
 
         head = ctk.CTkFrame(card, fg_color="transparent")
         head.pack(fill="x", padx=14, pady=(12, 6))
