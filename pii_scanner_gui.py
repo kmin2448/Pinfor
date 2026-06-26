@@ -17,6 +17,7 @@ pii_scanner.py 의 검출 엔진을 그대로 사용합니다. 두 파일을 같
 
 import os
 import sys
+import subprocess
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -370,9 +371,20 @@ class PIIScannerApp(ctk.CTk):
             head, text="", variable=var, width=24, command=self._update_select_info,
             fg_color=ACCENT, hover_color=ACCENT_HV, checkmark_color="#ffffff",
             border_color=INPUT_BD, corner_radius=5, border_width=2).pack(side="left")
-        ctk.CTkLabel(head, text="📄  " + path, anchor="w", text_color=TEXT,
-                     font=F(13, "bold"),
-                     wraplength=680, justify="left").pack(side="left", fill="x", expand=True)
+        # 폴더 열기 버튼
+        ctk.CTkButton(
+            head, text="📂 폴더", width=66, height=28, corner_radius=8,
+            font=F(11), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            border_width=1, border_color=BORDER,
+            command=lambda p=path: self._open_folder(p)).pack(side="right")
+        # 파일명: 클릭하면 기본 프로그램으로 열림
+        name_lbl = ctk.CTkLabel(head, text="📄  " + path, anchor="w",
+                                text_color=ACCENT_HV, font=F(13, "bold"),
+                                cursor="hand2", wraplength=600, justify="left")
+        name_lbl.pack(side="left", fill="x", expand=True)
+        name_lbl.bind("<Button-1>", lambda e, p=path: self._open_file(p))
+        name_lbl.bind("<Enter>", lambda e, w=name_lbl: w.configure(text_color=ACCENT))
+        name_lbl.bind("<Leave>", lambda e, w=name_lbl: w.configure(text_color=ACCENT_HV))
 
         by_type = {}
         for f in findings:
@@ -410,6 +422,44 @@ class PIIScannerApp(ctk.CTk):
             if path:
                 write_html(self.results, self.skipped, path, reveal)
                 messagebox.showinfo("완료", f"HTML 저장됨:\n{path}")
+
+    # ── 파일/폴더 열기 ─────────────────────────────────────
+    def _open_path(self, target):
+        """OS 기본 연결 프로그램으로 파일/폴더를 연다 (크로스 플랫폼)."""
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(target)                      # Windows
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", target])        # macOS
+            else:
+                subprocess.Popen(["xdg-open", target])    # Linux
+            return True
+        except Exception as e:
+            messagebox.showerror("열기 실패", f"열 수 없습니다:\n{target}\n\n{e}")
+            return False
+
+    def _open_file(self, path):
+        if not os.path.exists(path):
+            messagebox.showwarning(
+                "파일 없음",
+                f"파일을 찾을 수 없습니다.\n이미 이동/삭제되었을 수 있습니다.\n\n{path}")
+            return
+        self._open_path(path)
+
+    def _open_folder(self, path):
+        """파일이 들어 있는 폴더를 연다 (가능하면 해당 파일을 선택)."""
+        folder = os.path.dirname(path) or "."
+        if not os.path.isdir(folder):
+            messagebox.showwarning("폴더 없음", f"폴더를 찾을 수 없습니다.\n\n{folder}")
+            return
+        # Windows 탐색기는 파일을 선택한 채로 열 수 있음
+        if sys.platform.startswith("win") and os.path.exists(path):
+            try:
+                subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
+                return
+            except Exception:
+                pass
+        self._open_path(folder)
 
     # ── 대상 폴더 선택 ─────────────────────────────────────
     def _browse_dest(self):
