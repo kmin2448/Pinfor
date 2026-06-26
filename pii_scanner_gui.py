@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-개인정보 검출 스캐너 — GUI (뉴모피즘)
+개인정보 검출 스캐너 — GUI
 pii_scanner.py 의 검출 엔진을 그대로 사용합니다. 두 파일을 같은 폴더에 두세요.
+
+디자인: 폴더 동기화 프로그램과 동일한 결 — 차분한 세이지 그린 팔레트,
+        Malgun Gothic 폰트, 얇은 테두리의 플랫 카드.
 
 필요:
     pip install customtkinter python-docx openpyxl pdfplumber
@@ -28,22 +31,46 @@ from pii_scanner import (
 )
 
 # ───────────────────────────────────────────────────────────
-# 뉴모피즘 팔레트 (중립 그레이 + 틸 액센트)
+# 팔레트 — 폴더 동기화 앱과 동일한 세이지 그린 톤
 # ───────────────────────────────────────────────────────────
-BG_BASE   = "#e0e5ec"   # 기본 배경
-PANEL     = "#e6ebf2"   # 살짝 떠 보이는 패널
-PANEL_IN  = "#d7dce4"   # 눌린 느낌 (입력/결과 영역)
-ACCENT    = "#14b8a6"   # 틸
-ACCENT_HV = "#0f9b8e"   # 틸 hover
-TEXT      = "#3a3f47"
-MUTED     = "#7a828c"
-BORDER    = "#cdd3db"
-SEV_COLOR = {3: "#e05a5a", 2: "#e08a3c", 1: "#c79a2e"}
-DANGER    = "#d9534f"   # 삭제 버튼
-DANGER_HV = "#c33d39"
+BG_BASE     = "#eef2ee"   # 페이지 배경 (페일 세이지)
+PANEL       = "#e7ede7"   # 카드 배경
+PANEL_IN    = "#f3f6f3"   # 입력/결과 영역 (밝게)
+INPUT_BG    = "#f7faf7"   # 입력칸
+CARD_IN     = "#eef3ee"   # 결과 파일 카드
+
+ACCENT      = "#6fa288"   # 세이지 그린 (선택/진행 표시)
+ACCENT_HV   = "#5d8f76"
+SOFT        = "#dcebdd"   # 연한 그린 버튼 채움
+SOFT_HV     = "#cce0ce"
+SOFT_TX     = "#3f6b54"   # 연한 그린 버튼 글자
+SOFT_BD     = "#bcd6bf"
+
+LIGHT       = "#e6ece6"   # 보조 버튼 (찾아보기 등)
+LIGHT_HV    = "#d8e0d8"
+
+TEXT        = "#39433c"
+MUTED       = "#7c887f"
+BORDER      = "#ccd5cc"
+INPUT_BD    = "#c3cdc3"
+
+SEV_COLOR   = {3: "#cf6f5f", 2: "#cf9a5a", 1: "#b59a4e"}
+DANGER_SOFT = "#f0ddd8"   # 삭제 버튼 (차분한 레드 톤)
+DANGER_HV   = "#e7cbc4"
+DANGER_TX   = "#a8493b"
+DANGER_BD   = "#e0bdb4"
+
+# 폰트 — 한글이 깔끔하게 보이도록 Malgun Gothic 고정 (없으면 시스템 기본)
+FONT_FAMILY = "Malgun Gothic"
+
+
+def F(size=12, weight="normal"):
+    """공통 폰트 헬퍼."""
+    return ctk.CTkFont(family=FONT_FAMILY, size=size, weight=weight)
+
 
 ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("blue")
+ctk.set_default_color_theme("green")
 
 
 class PIIScannerApp(ctk.CTk):
@@ -70,7 +97,7 @@ class PIIScannerApp(ctk.CTk):
 
     # ── 공통 패널 헬퍼 ──────────────────────────────────────
     def _card(self, parent, **kw):
-        return ctk.CTkFrame(parent, fg_color=PANEL, corner_radius=18,
+        return ctk.CTkFrame(parent, fg_color=PANEL, corner_radius=14,
                             border_width=1, border_color=BORDER, **kw)
 
     # ── 헤더 ────────────────────────────────────────────────
@@ -78,11 +105,9 @@ class PIIScannerApp(ctk.CTk):
         head = ctk.CTkFrame(self, fg_color="transparent")
         head.pack(fill="x", padx=24, pady=(22, 8))
         ctk.CTkLabel(head, text="🔒  개인정보 검출 스캐너",
-                     font=ctk.CTkFont(size=24, weight="bold"),
-                     text_color=TEXT).pack(side="left")
+                     font=F(23, "bold"), text_color=TEXT).pack(side="left")
         ctk.CTkLabel(head, text="로컬 전용 · 외부 전송 없음",
-                     font=ctk.CTkFont(size=12),
-                     text_color=MUTED).pack(side="right", pady=8)
+                     font=F(12), text_color=MUTED).pack(side="right", pady=8)
 
     # ── 폴더 선택 ──────────────────────────────────────────
     def _build_folder_row(self):
@@ -91,17 +116,17 @@ class PIIScannerApp(ctk.CTk):
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=16, pady=14)
 
-        ctk.CTkLabel(inner, text="검사 폴더", font=ctk.CTkFont(size=13, weight="bold"),
+        ctk.CTkLabel(inner, text="검사 폴더", font=F(13, "bold"),
                      text_color=TEXT).pack(anchor="w", pady=(0, 6))
         row = ctk.CTkFrame(inner, fg_color="transparent")
         row.pack(fill="x")
         self.folder_entry = ctk.CTkEntry(
             row, placeholder_text="검사할 폴더를 선택하세요…",
-            fg_color=PANEL_IN, border_color=BORDER, border_width=1,
-            text_color=TEXT, corner_radius=12, height=40)
+            font=F(12), fg_color=INPUT_BG, border_color=INPUT_BD, border_width=1,
+            text_color=TEXT, corner_radius=10, height=40)
         self.folder_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        ctk.CTkButton(row, text="폴더 찾기", width=110, height=40, corner_radius=12,
-                      fg_color=PANEL_IN, hover_color=BORDER, text_color=TEXT,
+        ctk.CTkButton(row, text="폴더 찾기", width=110, height=40, corner_radius=10,
+                      font=F(12), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
                       border_width=1, border_color=BORDER,
                       command=self._browse).pack(side="left")
 
@@ -118,7 +143,7 @@ class PIIScannerApp(ctk.CTk):
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=16, pady=14)
 
-        ctk.CTkLabel(inner, text="검출 유형", font=ctk.CTkFont(size=13, weight="bold"),
+        ctk.CTkLabel(inner, text="검출 유형", font=F(13, "bold"),
                      text_color=TEXT).pack(anchor="w", pady=(0, 8))
 
         grid = ctk.CTkFrame(inner, fg_color="transparent")
@@ -128,9 +153,10 @@ class PIIScannerApp(ctk.CTk):
             self.type_vars[key] = var
             cb = ctk.CTkCheckBox(
                 grid, text=det["label"], variable=var,
-                font=ctk.CTkFont(size=12), text_color=TEXT,
+                font=F(12), text_color=TEXT,
                 fg_color=ACCENT, hover_color=ACCENT_HV,
-                checkmark_color="#ffffff", border_color=BORDER, corner_radius=6)
+                checkmark_color="#ffffff", border_color=INPUT_BD, corner_radius=5,
+                border_width=2)
             cb.grid(row=i // 3, column=i % 3, sticky="w", padx=8, pady=6)
 
         bottom = ctk.CTkFrame(inner, fg_color="transparent")
@@ -138,8 +164,9 @@ class PIIScannerApp(ctk.CTk):
         ctk.CTkSwitch(
             bottom, text="실제 값 표시 (마스킹 해제 · 주의)",
             variable=self.reveal_var, command=self._reveal_warn,
-            font=ctk.CTkFont(size=12), text_color=TEXT,
-            progress_color=ACCENT, button_color="#ffffff").pack(side="left")
+            font=F(12), text_color=TEXT,
+            progress_color=ACCENT, button_color="#ffffff",
+            fg_color=INPUT_BD).pack(side="left")
 
     def _reveal_warn(self):
         if self.reveal_var.get():
@@ -156,21 +183,21 @@ class PIIScannerApp(ctk.CTk):
         row.pack(fill="x", padx=24, pady=(4, 8))
 
         self.scan_btn = ctk.CTkButton(
-            row, text="검사 시작", height=46, width=160, corner_radius=14,
-            font=ctk.CTkFont(size=15, weight="bold"),
-            fg_color=ACCENT, hover_color=ACCENT_HV, text_color="#ffffff",
+            row, text="검사 시작", height=46, width=160, corner_radius=12,
+            font=F(15, "bold"),
+            fg_color=SOFT, hover_color=SOFT_HV, text_color=SOFT_TX,
+            border_width=1, border_color=SOFT_BD,
             command=self._start_scan)
         self.scan_btn.pack(side="left")
 
         self.progress = ctk.CTkProgressBar(
-            row, height=10, corner_radius=6, progress_color=ACCENT,
-            fg_color=PANEL_IN)
+            row, height=10, corner_radius=5, progress_color=ACCENT,
+            fg_color="#dde4dd")
         self.progress.pack(side="left", fill="x", expand=True, padx=16)
         self.progress.set(0)
 
         self.status = ctk.CTkLabel(row, text="대기 중", text_color=MUTED,
-                                   font=ctk.CTkFont(size=12), width=160,
-                                   anchor="e")
+                                   font=F(12), width=160, anchor="e")
         self.status.pack(side="right")
 
     # ── 결과 영역 ──────────────────────────────────────────
@@ -178,7 +205,8 @@ class PIIScannerApp(ctk.CTk):
         card = self._card(self)
         card.pack(fill="both", expand=True, padx=24, pady=8)
         self.results_frame = ctk.CTkScrollableFrame(
-            card, fg_color=PANEL_IN, corner_radius=14)
+            card, fg_color=PANEL_IN, corner_radius=12,
+            scrollbar_button_color=BORDER, scrollbar_button_hover_color=MUTED)
         self.results_frame.pack(fill="both", expand=True, padx=10, pady=10)
         self._placeholder()
 
@@ -187,7 +215,7 @@ class PIIScannerApp(ctk.CTk):
             w.destroy()
         ctk.CTkLabel(self.results_frame,
                      text="폴더를 선택하고 검사를 시작하세요.",
-                     text_color=MUTED, font=ctk.CTkFont(size=13)).pack(pady=40)
+                     text_color=MUTED, font=F(13)).pack(pady=40)
 
     # ── 푸터 (선택/격리/삭제 + 요약 + 내보내기) ────────────
     def _build_footer(self):
@@ -198,43 +226,43 @@ class PIIScannerApp(ctk.CTk):
         self.select_all_var = ctk.BooleanVar(value=False)
         self.select_all_cb = ctk.CTkCheckBox(
             act, text="전체 선택", variable=self.select_all_var,
-            command=self._toggle_all, font=ctk.CTkFont(size=12), text_color=TEXT,
+            command=self._toggle_all, font=F(12), text_color=TEXT,
             fg_color=ACCENT, hover_color=ACCENT_HV, checkmark_color="#ffffff",
-            border_color=BORDER, corner_radius=6, state="disabled")
+            border_color=INPUT_BD, corner_radius=5, border_width=2, state="disabled")
         self.select_all_cb.pack(side="left")
-        self.select_info = ctk.CTkLabel(act, text="", text_color=MUTED,
-                                        font=ctk.CTkFont(size=12))
+        self.select_info = ctk.CTkLabel(act, text="", text_color=MUTED, font=F(12))
         self.select_info.pack(side="left", padx=10)
 
         self.delete_btn = ctk.CTkButton(
-            act, text="선택 삭제", width=120, height=38, corner_radius=12,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color=DANGER, hover_color=DANGER_HV, text_color="#ffffff",
+            act, text="선택 삭제", width=120, height=38, corner_radius=10,
+            font=F(13, "bold"),
+            fg_color=DANGER_SOFT, hover_color=DANGER_HV, text_color=DANGER_TX,
+            border_width=1, border_color=DANGER_BD,
             state="disabled", command=self._delete_selected)
         self.delete_btn.pack(side="right", padx=(8, 0))
         self.quar_btn = ctk.CTkButton(
-            act, text="선택 격리(이동)", width=130, height=38, corner_radius=12,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color=ACCENT, hover_color=ACCENT_HV, text_color="#ffffff",
+            act, text="선택 격리(이동)", width=130, height=38, corner_radius=10,
+            font=F(13, "bold"),
+            fg_color=SOFT, hover_color=SOFT_HV, text_color=SOFT_TX,
+            border_width=1, border_color=SOFT_BD,
             state="disabled", command=self._quarantine_selected)
         self.quar_btn.pack(side="right", padx=(8, 0))
 
         # 2행: 요약 + 내보내기
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.pack(fill="x", padx=24, pady=(2, 18))
-        self.summary = ctk.CTkLabel(row, text="", text_color=TEXT,
-                                    font=ctk.CTkFont(size=13, weight="bold"))
+        self.summary = ctk.CTkLabel(row, text="", text_color=TEXT, font=F(13, "bold"))
         self.summary.pack(side="left")
 
         self.html_btn = ctk.CTkButton(
-            row, text="HTML 저장", width=110, height=38, corner_radius=12,
-            fg_color=PANEL, hover_color=BORDER, text_color=TEXT,
+            row, text="HTML 저장", width=110, height=38, corner_radius=10,
+            font=F(13), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
             border_width=1, border_color=BORDER, state="disabled",
             command=lambda: self._export("html"))
         self.html_btn.pack(side="right", padx=(8, 0))
         self.csv_btn = ctk.CTkButton(
-            row, text="CSV 저장", width=110, height=38, corner_radius=12,
-            fg_color=PANEL, hover_color=BORDER, text_color=TEXT,
+            row, text="CSV 저장", width=110, height=38, corner_radius=10,
+            font=F(13), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
             border_width=1, border_color=BORDER, state="disabled",
             command=lambda: self._export("csv"))
         self.csv_btn.pack(side="right", padx=(8, 0))
@@ -299,8 +327,7 @@ class PIIScannerApp(ctk.CTk):
 
         if not self.results:
             ctk.CTkLabel(self.results_frame, text="✅ 검출된 개인정보가 없습니다.",
-                         text_color=ACCENT, font=ctk.CTkFont(size=14, weight="bold")
-                         ).pack(pady=40)
+                         text_color=ACCENT, font=F(14, "bold")).pack(pady=40)
             return
 
         self.csv_btn.configure(state="normal")
@@ -316,8 +343,8 @@ class PIIScannerApp(ctk.CTk):
         self._update_select_info()
 
     def _render_file_card(self, path, findings, reveal):
-        card = ctk.CTkFrame(self.results_frame, fg_color=PANEL,
-                            corner_radius=14, border_width=1, border_color=BORDER)
+        card = ctk.CTkFrame(self.results_frame, fg_color=CARD_IN,
+                            corner_radius=12, border_width=1, border_color=BORDER)
         card.pack(fill="x", padx=6, pady=6)
 
         head = ctk.CTkFrame(card, fg_color="transparent")
@@ -327,9 +354,9 @@ class PIIScannerApp(ctk.CTk):
         ctk.CTkCheckBox(
             head, text="", variable=var, width=24, command=self._update_select_info,
             fg_color=ACCENT, hover_color=ACCENT_HV, checkmark_color="#ffffff",
-            border_color=BORDER, corner_radius=6).pack(side="left")
+            border_color=INPUT_BD, corner_radius=5, border_width=2).pack(side="left")
         ctk.CTkLabel(head, text="📄  " + path, anchor="w", text_color=TEXT,
-                     font=ctk.CTkFont(size=13, weight="bold"),
+                     font=F(13, "bold"),
                      wraplength=680, justify="left").pack(side="left", fill="x", expand=True)
 
         by_type = {}
@@ -340,15 +367,13 @@ class PIIScannerApp(ctk.CTk):
             line = ctk.CTkFrame(card, fg_color="transparent")
             line.pack(fill="x", padx=14, pady=2)
             ctk.CTkLabel(line, text="●", text_color=SEV_COLOR[sev],
-                         font=ctk.CTkFont(size=13), width=16).pack(side="left")
+                         font=F(13), width=16).pack(side="left")
             ctk.CTkLabel(line, text=f"{SEV_NAME[sev]} · {typ} · {len(items)}건",
-                         text_color=TEXT, font=ctk.CTkFont(size=12),
-                         anchor="w").pack(side="left")
+                         text_color=TEXT, font=F(12), anchor="w").pack(side="left")
             sample = items[0]
             shown = sample["value"] if reveal else mask(sample["value"])
             ctk.CTkLabel(line, text=f"  예) {sample['line']}: {shown}",
-                         text_color=MUTED, font=ctk.CTkFont(size=11),
-                         anchor="w").pack(side="left")
+                         text_color=MUTED, font=F(11), anchor="w").pack(side="left")
         ctk.CTkFrame(card, fg_color="transparent", height=6).pack()
 
     # ── 내보내기 ──────────────────────────────────────────
