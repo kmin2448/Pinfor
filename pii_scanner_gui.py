@@ -4,8 +4,8 @@
 개인정보 검출 스캐너 — GUI
 pii_scanner.py 의 검출 엔진을 그대로 사용합니다. 두 파일을 같은 폴더에 두세요.
 
-디자인: 폴더 동기화 프로그램과 동일한 결 — 차분한 세이지 그린 팔레트,
-        Malgun Gothic 폰트, 얇은 테두리의 플랫 카드.
+디자인: 폴더 동기화 프로그램과 동일한 결 — 세이지/민트 플랫 카드(그림자 없음),
+        Malgun Gothic 폰트, 여백을 줄여 한 화면에 들어오는 컴팩트 레이아웃.
 
 필요:
     pip install customtkinter python-docx openpyxl pdfplumber
@@ -32,29 +32,28 @@ from pii_scanner import (
 )
 
 # ───────────────────────────────────────────────────────────
-# 팔레트 — 라이트 그레이 배경 + 흰색 카드(드롭 섀도) · 그린 포인트 유지
+# 팔레트 — 세이지/민트 플랫 (그림자 없음) · 그린 포인트
 # ───────────────────────────────────────────────────────────
-BG_BASE     = "#edeef1"   # 페이지 배경 (라이트 쿨 그레이)
-PANEL       = "#ffffff"   # 카드 배경 (흰색)
-PANEL_IN    = "#f6f7f9"   # 결과 스크롤 영역 (아주 옅은 회색)
-INPUT_BG    = "#f4f5f7"   # 입력칸
-CARD_IN     = "#ffffff"   # 결과 파일 카드 (흰색)
-SHADOW      = "#d6d9df"   # 카드 드롭 섀도 톤
+BG_BASE     = "#e9ede9"   # 페이지 배경
+PANEL       = "#eef2ee"   # 카드 (얇은 테두리, 그림자 없음)
+PANEL_IN    = "#e7f0ea"   # 결과/내부 패널 (옅은 민트)
+INPUT_BG    = "#f3f7f4"   # 입력칸
+CARD_IN     = "#eef3ef"   # 결과 파일 카드
 
-ACCENT      = "#6fa288"   # 세이지 그린 (선택/진행 표시 · 포인트 유지)
-ACCENT_HV   = "#5d8f76"
-SOFT        = "#dcebdd"   # 연한 그린 버튼 채움
-SOFT_HV     = "#cce0ce"
-SOFT_TX     = "#3f6b54"   # 연한 그린 버튼 글자
+ACCENT      = "#5f9e84"   # 미디엄 세이지 그린 (선택/진행 · 포인트)
+ACCENT_HV   = "#4f8b72"
+SOFT        = "#dfeede"   # 연한 민트 버튼 채움
+SOFT_HV     = "#cfe6d2"
+SOFT_TX     = "#3f6b54"   # 연한 민트 버튼 글자
 SOFT_BD     = "#bcd6bf"
 
-LIGHT       = "#eef0f3"   # 보조 버튼 (찾아보기 등) · 중립 그레이
-LIGHT_HV    = "#e1e4e9"
+LIGHT       = "#e3e9e4"   # 보조 버튼 (찾아보기 등)
+LIGHT_HV    = "#d6ddd8"
 
-TEXT        = "#39433c"
-MUTED       = "#8a909a"
-BORDER      = "#e7e9ee"
-INPUT_BD    = "#dfe2e7"
+TEXT        = "#374239"
+MUTED       = "#7c887f"
+BORDER      = "#c9d3cb"
+INPUT_BD    = "#c2cdc4"
 
 SEV_COLOR   = {3: "#cf6f5f", 2: "#cf9a5a", 1: "#b59a4e"}
 DANGER_SOFT = "#f0ddd8"   # 삭제 버튼 (차분한 레드 톤)
@@ -66,7 +65,7 @@ DANGER_BD   = "#e0bdb4"
 FONT_FAMILY = "Malgun Gothic"
 
 
-def F(size=12, weight="normal"):
+def F(size=11, weight="normal"):
     """공통 폰트 헬퍼."""
     return ctk.CTkFont(family=FONT_FAMILY, size=size, weight=weight)
 
@@ -79,16 +78,16 @@ class PIIScannerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("개인정보 검출 스캐너")
-        self.geometry("860x720")
-        self.minsize(760, 640)
+        self.geometry("720x820")
+        self.minsize(680, 720)
         self.configure(fg_color=BG_BASE)
 
         self.results = []
         self.skipped = []
         self.type_vars = {}
         self.reveal_var = ctk.BooleanVar(value=False)
-        self.file_vars = {}          # 파일경로 -> BooleanVar (격리/삭제 선택)
-        self.scanned_folder = ""     # 마지막으로 검사한 폴더 (격리 기준)
+        self.file_vars = {}          # 파일경로 -> BooleanVar (이동/삭제 선택)
+        self.scanned_folder = ""     # 마지막으로 검사한 폴더 (이동 기준)
 
         self._build_header()
         self._build_folder_row()
@@ -97,49 +96,36 @@ class PIIScannerApp(ctk.CTk):
         self._build_results_area()
         self._build_footer()
 
-    # ── 공통 패널 헬퍼 ──────────────────────────────────────
-    def _shadow_card(self, parent, radius=16, fg=PANEL):
-        """흰 카드 + 우하단 드롭 섀도를 만든다.
-        같은 grid 셀에 섀도 프레임과 카드를 겹쳐, 카드를 좌상단으로
-        살짝 올려 섀도가 우·하단으로 비치게 한다.
-        반환: (holder=배치용 프레임, card=내용 담을 프레임)"""
-        holder = ctk.CTkFrame(parent, fg_color="transparent")
-        holder.grid_rowconfigure(0, weight=1)
-        holder.grid_columnconfigure(0, weight=1)
-        shadow = ctk.CTkFrame(holder, fg_color=SHADOW, corner_radius=radius)
-        shadow.grid(row=0, column=0, sticky="nsew", padx=(2, 0), pady=(3, 0))
-        card = ctk.CTkFrame(holder, fg_color=fg, corner_radius=radius,
-                            border_width=0)
-        card.grid(row=0, column=0, sticky="nsew", padx=(0, 3), pady=(0, 4))
-        return holder, card
+    # ── 공통 카드 (플랫, 얇은 테두리, 그림자 없음) ─────────────
+    def _card(self, parent, radius=12, fg=PANEL):
+        return ctk.CTkFrame(parent, fg_color=fg, corner_radius=radius,
+                            border_width=1, border_color=BORDER)
 
     # ── 헤더 ────────────────────────────────────────────────
     def _build_header(self):
         head = ctk.CTkFrame(self, fg_color="transparent")
-        head.pack(fill="x", padx=24, pady=(22, 8))
+        head.pack(fill="x", padx=14, pady=(12, 4))
         ctk.CTkLabel(head, text="🔒  개인정보 검출 스캐너",
-                     font=F(23, "bold"), text_color=TEXT).pack(side="left")
+                     font=F(19, "bold"), text_color=TEXT).pack(side="left")
         ctk.CTkLabel(head, text="로컬 전용 · 외부 전송 없음",
-                     font=F(12), text_color=MUTED).pack(side="right", pady=8)
+                     font=F(11), text_color=MUTED).pack(side="right", pady=2)
 
-    # ── 폴더 선택 ──────────────────────────────────────────
+    # ── 폴더 선택 (한 줄 컴팩트) ───────────────────────────
     def _build_folder_row(self):
-        holder, card = self._shadow_card(self)
-        holder.pack(fill="x", padx=24, pady=8)
-        inner = ctk.CTkFrame(card, fg_color="transparent")
-        inner.pack(fill="x", padx=16, pady=14)
+        card = self._card(self)
+        card.pack(fill="x", padx=14, pady=4)
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=12, pady=9)
 
-        ctk.CTkLabel(inner, text="검사 폴더", font=F(13, "bold"),
-                     text_color=TEXT).pack(anchor="w", pady=(0, 6))
-        row = ctk.CTkFrame(inner, fg_color="transparent")
-        row.pack(fill="x")
+        ctk.CTkLabel(row, text="검사 폴더", font=F(12, "bold"),
+                     text_color=TEXT, width=64, anchor="w").pack(side="left")
         self.folder_entry = ctk.CTkEntry(
             row, placeholder_text="검사할 폴더를 선택하세요…",
-            font=F(12), fg_color=INPUT_BG, border_color=INPUT_BD, border_width=1,
-            text_color=TEXT, corner_radius=10, height=40)
-        self.folder_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        ctk.CTkButton(row, text="폴더 찾기", width=110, height=40, corner_radius=10,
-                      font=F(12), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            font=F(11), fg_color=INPUT_BG, border_color=INPUT_BD, border_width=1,
+            text_color=TEXT, corner_radius=8, height=32)
+        self.folder_entry.pack(side="left", fill="x", expand=True, padx=(4, 8))
+        ctk.CTkButton(row, text="폴더 찾기", width=92, height=32, corner_radius=8,
+                      font=F(11), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
                       border_width=1, border_color=BORDER,
                       command=self._browse).pack(side="left")
 
@@ -151,35 +137,33 @@ class PIIScannerApp(ctk.CTk):
 
     # ── 옵션 (검출 유형 / 마스킹) ──────────────────────────
     def _build_options(self):
-        holder, card = self._shadow_card(self)
-        holder.pack(fill="x", padx=24, pady=8)
+        card = self._card(self)
+        card.pack(fill="x", padx=14, pady=4)
         inner = ctk.CTkFrame(card, fg_color="transparent")
-        inner.pack(fill="x", padx=16, pady=14)
+        inner.pack(fill="x", padx=12, pady=9)
 
-        ctk.CTkLabel(inner, text="검출 유형", font=F(13, "bold"),
-                     text_color=TEXT).pack(anchor="w", pady=(0, 8))
+        top = ctk.CTkFrame(inner, fg_color="transparent")
+        top.pack(fill="x")
+        ctk.CTkLabel(top, text="검출 유형", font=F(12, "bold"),
+                     text_color=TEXT).pack(side="left")
+        ctk.CTkSwitch(
+            top, text="실제 값 표시 (마스킹 해제 · 주의)",
+            variable=self.reveal_var, command=self._reveal_warn,
+            font=F(11), text_color=TEXT, progress_color=ACCENT,
+            button_color="#ffffff", fg_color=INPUT_BD,
+            width=40, switch_width=36, switch_height=18).pack(side="right")
 
         grid = ctk.CTkFrame(inner, fg_color="transparent")
-        grid.pack(fill="x")
+        grid.pack(fill="x", pady=(6, 0))
         for i, (key, det) in enumerate(DETECTORS.items()):
             var = ctk.BooleanVar(value=True)
             self.type_vars[key] = var
-            cb = ctk.CTkCheckBox(
+            ctk.CTkCheckBox(
                 grid, text=det["label"], variable=var,
-                font=F(12), text_color=TEXT,
-                fg_color=ACCENT, hover_color=ACCENT_HV,
+                font=F(11), text_color=TEXT, fg_color=ACCENT, hover_color=ACCENT_HV,
                 checkmark_color="#ffffff", border_color=INPUT_BD, corner_radius=5,
-                border_width=2)
-            cb.grid(row=i // 3, column=i % 3, sticky="w", padx=8, pady=6)
-
-        bottom = ctk.CTkFrame(inner, fg_color="transparent")
-        bottom.pack(fill="x", pady=(10, 0))
-        ctk.CTkSwitch(
-            bottom, text="실제 값 표시 (마스킹 해제 · 주의)",
-            variable=self.reveal_var, command=self._reveal_warn,
-            font=F(12), text_color=TEXT,
-            progress_color=ACCENT, button_color="#ffffff",
-            fg_color=INPUT_BD).pack(side="left")
+                border_width=2, checkbox_width=18, checkbox_height=18
+            ).grid(row=i // 4, column=i % 4, sticky="w", padx=6, pady=3)
 
     def _reveal_warn(self):
         if self.reveal_var.get():
@@ -193,34 +177,32 @@ class PIIScannerApp(ctk.CTk):
     # ── 실행 버튼 + 진행률 ─────────────────────────────────
     def _build_action_row(self):
         row = ctk.CTkFrame(self, fg_color="transparent")
-        row.pack(fill="x", padx=24, pady=(4, 8))
+        row.pack(fill="x", padx=14, pady=(4, 2))
 
         self.scan_btn = ctk.CTkButton(
-            row, text="검사 시작", height=46, width=160, corner_radius=12,
-            font=F(15, "bold"),
-            fg_color=SOFT, hover_color=SOFT_HV, text_color=SOFT_TX,
-            border_width=1, border_color=SOFT_BD,
+            row, text="검사 시작", height=38, width=130, corner_radius=10,
+            font=F(13, "bold"), fg_color=SOFT, hover_color=SOFT_HV,
+            text_color=SOFT_TX, border_width=1, border_color=SOFT_BD,
             command=self._start_scan)
         self.scan_btn.pack(side="left")
 
         self.progress = ctk.CTkProgressBar(
-            row, height=10, corner_radius=5, progress_color=ACCENT,
-            fg_color="#dfe2e7")
-        self.progress.pack(side="left", fill="x", expand=True, padx=16)
+            row, height=8, corner_radius=4, progress_color=ACCENT, fg_color="#d7e0d9")
+        self.progress.pack(side="left", fill="x", expand=True, padx=14)
         self.progress.set(0)
 
         self.status = ctk.CTkLabel(row, text="대기 중", text_color=MUTED,
-                                   font=F(12), width=160, anchor="e")
+                                   font=F(11), width=130, anchor="e")
         self.status.pack(side="right")
 
     # ── 결과 영역 ──────────────────────────────────────────
     def _build_results_area(self):
-        holder, card = self._shadow_card(self)
-        holder.pack(fill="both", expand=True, padx=24, pady=8)
+        card = self._card(self)
+        card.pack(fill="both", expand=True, padx=14, pady=4)
         self.results_frame = ctk.CTkScrollableFrame(
-            card, fg_color=PANEL_IN, corner_radius=12,
+            card, fg_color=PANEL_IN, corner_radius=10,
             scrollbar_button_color=INPUT_BD, scrollbar_button_hover_color=MUTED)
-        self.results_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        self.results_frame.pack(fill="both", expand=True, padx=8, pady=8)
         self._placeholder()
 
     def _placeholder(self):
@@ -228,72 +210,68 @@ class PIIScannerApp(ctk.CTk):
             w.destroy()
         ctk.CTkLabel(self.results_frame,
                      text="폴더를 선택하고 검사를 시작하세요.",
-                     text_color=MUTED, font=F(13)).pack(pady=40)
+                     text_color=MUTED, font=F(12)).pack(pady=30)
 
     # ── 푸터 (대상폴더 + 선택/이동/삭제 + 요약 + 내보내기) ──
     def _build_footer(self):
-        # 0행: 이동(격리) 대상 폴더 선택
+        # 0행: 이동(별도) 대상 폴더 선택
         dest = ctk.CTkFrame(self, fg_color="transparent")
-        dest.pack(fill="x", padx=24, pady=(2, 2))
+        dest.pack(fill="x", padx=14, pady=(4, 2))
         ctk.CTkLabel(dest, text="이동 폴더", font=F(12, "bold"),
-                     text_color=TEXT).pack(side="left", padx=(0, 8))
+                     text_color=TEXT, width=64, anchor="w").pack(side="left")
         self.dest_entry = ctk.CTkEntry(
-            dest, placeholder_text="이동할 별도 폴더를 선택하세요 (비우면 검사 폴더 안에 '_PII_격리_날짜' 자동 생성)",
-            font=F(12), fg_color=INPUT_BG, border_color=INPUT_BD, border_width=1,
-            text_color=TEXT, corner_radius=10, height=36)
-        self.dest_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        ctk.CTkButton(dest, text="찾아보기", width=90, height=36, corner_radius=10,
-                      font=F(12), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            dest, placeholder_text="이동할 별도 폴더 (비우면 검사 폴더 안에 '_PII_격리_날짜' 자동 생성)",
+            font=F(11), fg_color=INPUT_BG, border_color=INPUT_BD, border_width=1,
+            text_color=TEXT, corner_radius=8, height=32)
+        self.dest_entry.pack(side="left", fill="x", expand=True, padx=(4, 8))
+        ctk.CTkButton(dest, text="찾아보기", width=82, height=32, corner_radius=8,
+                      font=F(11), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
                       border_width=1, border_color=BORDER,
                       command=self._browse_dest).pack(side="left")
 
-        # 1행: 선택 제어 + 이동/삭제
+        # 1행: 선택 제어 + 이동/삭제 + 내보내기
         act = ctk.CTkFrame(self, fg_color="transparent")
-        act.pack(fill="x", padx=24, pady=(4, 2))
+        act.pack(fill="x", padx=14, pady=(4, 10))
 
         self.select_all_var = ctk.BooleanVar(value=False)
         self.select_all_btn = ctk.CTkButton(
-            act, text="전체 선택", width=96, height=34, corner_radius=10,
-            font=F(12, "bold"), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            act, text="전체 선택", width=84, height=32, corner_radius=8,
+            font=F(11, "bold"), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
             border_width=1, border_color=BORDER,
             state="disabled", command=self._toggle_all)
         self.select_all_btn.pack(side="left")
-        self.select_info = ctk.CTkLabel(act, text="", text_color=MUTED, font=F(12))
-        self.select_info.pack(side="left", padx=10)
+        self.select_info = ctk.CTkLabel(act, text="", text_color=MUTED, font=F(11))
+        self.select_info.pack(side="left", padx=8)
 
         self.delete_btn = ctk.CTkButton(
-            act, text="선택 삭제", width=120, height=38, corner_radius=10,
-            font=F(13, "bold"),
-            fg_color=DANGER_SOFT, hover_color=DANGER_HV, text_color=DANGER_TX,
-            border_width=1, border_color=DANGER_BD,
+            act, text="선택 삭제", width=92, height=32, corner_radius=8,
+            font=F(12, "bold"), fg_color=DANGER_SOFT, hover_color=DANGER_HV,
+            text_color=DANGER_TX, border_width=1, border_color=DANGER_BD,
             state="disabled", command=self._delete_selected)
-        self.delete_btn.pack(side="right", padx=(8, 0))
+        self.delete_btn.pack(side="right")
         self.quar_btn = ctk.CTkButton(
-            act, text="선택 파일 이동", width=130, height=38, corner_radius=10,
-            font=F(13, "bold"),
-            fg_color=SOFT, hover_color=SOFT_HV, text_color=SOFT_TX,
+            act, text="선택 파일 이동", width=110, height=32, corner_radius=8,
+            font=F(12, "bold"), fg_color=SOFT, hover_color=SOFT_HV, text_color=SOFT_TX,
             border_width=1, border_color=SOFT_BD,
             state="disabled", command=self._quarantine_selected)
-        self.quar_btn.pack(side="right", padx=(8, 0))
-
-        # 2행: 요약 + 내보내기
-        row = ctk.CTkFrame(self, fg_color="transparent")
-        row.pack(fill="x", padx=24, pady=(2, 18))
-        self.summary = ctk.CTkLabel(row, text="", text_color=TEXT, font=F(13, "bold"))
-        self.summary.pack(side="left")
+        self.quar_btn.pack(side="right", padx=(8, 8))
 
         self.html_btn = ctk.CTkButton(
-            row, text="HTML 저장", width=110, height=38, corner_radius=10,
-            font=F(13), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            act, text="HTML", width=64, height=32, corner_radius=8,
+            font=F(11), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
             border_width=1, border_color=BORDER, state="disabled",
             command=lambda: self._export("html"))
-        self.html_btn.pack(side="right", padx=(8, 0))
+        self.html_btn.pack(side="right", padx=(0, 8))
         self.csv_btn = ctk.CTkButton(
-            row, text="CSV 저장", width=110, height=38, corner_radius=10,
-            font=F(13), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
+            act, text="CSV", width=58, height=32, corner_radius=8,
+            font=F(11), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
             border_width=1, border_color=BORDER, state="disabled",
             command=lambda: self._export("csv"))
-        self.csv_btn.pack(side="right", padx=(8, 0))
+        self.csv_btn.pack(side="right", padx=(0, 6))
+
+        # 요약 라벨 (헤더 옆 진행칸 대신 결과 영역 아래)
+        self.summary = ctk.CTkLabel(self, text="", text_color=TEXT, font=F(11, "bold"))
+        self.summary.pack(padx=16, pady=(0, 8), anchor="w")
 
     # ── 스캔 실행 (스레드) ─────────────────────────────────
     def _start_scan(self):
@@ -339,7 +317,7 @@ class PIIScannerApp(ctk.CTk):
 
     def _update_progress(self, frac, idx, total, name):
         self.progress.set(frac)
-        self.status.configure(text=f"{idx}/{total}  {name[:18]}")
+        self.status.configure(text=f"{idx}/{total}  {name[:16]}")
 
     # ── 결과 렌더링 ────────────────────────────────────────
     def _render_results(self):
@@ -355,7 +333,7 @@ class PIIScannerApp(ctk.CTk):
 
         if not self.results:
             ctk.CTkLabel(self.results_frame, text="✅ 검출된 개인정보가 없습니다.",
-                         text_color=ACCENT, font=F(14, "bold")).pack(pady=40)
+                         text_color=ACCENT, font=F(13, "bold")).pack(pady=30)
             return
 
         self.csv_btn.configure(state="normal")
@@ -371,68 +349,48 @@ class PIIScannerApp(ctk.CTk):
         self._update_select_info()
 
     def _render_file_card(self, path, findings, reveal):
-        holder, card = self._shadow_card(self.results_frame, radius=12, fg=CARD_IN)
-        holder.pack(fill="x", padx=6, pady=6)
+        card = self._card(self.results_frame, radius=10, fg=CARD_IN)
+        card.pack(fill="x", padx=4, pady=3)
 
         head = ctk.CTkFrame(card, fg_color="transparent")
-        head.pack(fill="x", padx=14, pady=(12, 6))
+        head.pack(fill="x", padx=10, pady=(7, 4))
         var = ctk.BooleanVar(value=False)
         self.file_vars[path] = var
         ctk.CTkCheckBox(
-            head, text="", variable=var, width=24, command=self._update_select_info,
+            head, text="", variable=var, width=22, command=self._update_select_info,
             fg_color=ACCENT, hover_color=ACCENT_HV, checkmark_color="#ffffff",
-            border_color=INPUT_BD, corner_radius=5, border_width=2).pack(side="left")
-        # 폴더 열기 버튼
+            border_color=INPUT_BD, corner_radius=5, border_width=2,
+            checkbox_width=18, checkbox_height=18).pack(side="left")
         ctk.CTkButton(
-            head, text="📂 폴더", width=66, height=28, corner_radius=8,
+            head, text="📂 폴더", width=58, height=26, corner_radius=7,
             font=F(11), fg_color=LIGHT, hover_color=LIGHT_HV, text_color=TEXT,
             border_width=1, border_color=BORDER,
             command=lambda p=path: self._open_folder(p)).pack(side="right")
-        # 파일명: 클릭하면 기본 프로그램으로 열림
         name_lbl = ctk.CTkLabel(head, text="📄  " + path, anchor="w",
-                                text_color=ACCENT_HV, font=F(13, "bold"),
-                                cursor="hand2", wraplength=600, justify="left")
-        name_lbl.pack(side="left", fill="x", expand=True)
+                                text_color=ACCENT_HV, font=F(12, "bold"),
+                                cursor="hand2", wraplength=520, justify="left")
+        name_lbl.pack(side="left", fill="x", expand=True, padx=(6, 6))
         name_lbl.bind("<Button-1>", lambda e, p=path: self._open_file(p))
         name_lbl.bind("<Enter>", lambda e, w=name_lbl: w.configure(text_color=ACCENT))
         name_lbl.bind("<Leave>", lambda e, w=name_lbl: w.configure(text_color=ACCENT_HV))
 
+        # 유형별 한 줄 요약 (한 건이면 한 줄)
         by_type = {}
         for f in findings:
             by_type.setdefault(f["type"], []).append(f)
         for typ, items in sorted(by_type.items(), key=lambda x: -x[1][0]["severity"]):
             sev = items[0]["severity"]
-            line = ctk.CTkFrame(card, fg_color="transparent")
-            line.pack(fill="x", padx=14, pady=2)
-            ctk.CTkLabel(line, text="●", text_color=SEV_COLOR[sev],
-                         font=F(13), width=16).pack(side="left")
-            ctk.CTkLabel(line, text=f"{SEV_NAME[sev]} · {typ} · {len(items)}건",
-                         text_color=TEXT, font=F(12), anchor="w").pack(side="left")
             sample = items[0]
             shown = sample["value"] if reveal else mask(sample["value"])
-            ctk.CTkLabel(line, text=f"  예) {sample['line']}: {shown}",
-                         text_color=MUTED, font=F(11), anchor="w").pack(side="left")
-        ctk.CTkFrame(card, fg_color="transparent", height=6).pack()
-
-    # ── 내보내기 ──────────────────────────────────────────
-    def _export(self, kind):
-        if not self.results:
-            return
-        reveal = self.reveal_var.get()
-        if kind == "csv":
-            path = filedialog.asksaveasfilename(
-                defaultextension=".csv", filetypes=[("CSV", "*.csv")],
-                initialfile="개인정보_검출결과.csv")
-            if path:
-                write_csv(self.results, path, reveal)
-                messagebox.showinfo("완료", f"CSV 저장됨:\n{path}")
-        else:
-            path = filedialog.asksaveasfilename(
-                defaultextension=".html", filetypes=[("HTML", "*.html")],
-                initialfile="개인정보_검출결과.html")
-            if path:
-                write_html(self.results, self.skipped, path, reveal)
-                messagebox.showinfo("완료", f"HTML 저장됨:\n{path}")
+            line = ctk.CTkFrame(card, fg_color="transparent")
+            line.pack(fill="x", padx=10, pady=(0, 1))
+            ctk.CTkLabel(line, text="●", text_color=SEV_COLOR[sev],
+                         font=F(11), width=14).pack(side="left")
+            ctk.CTkLabel(
+                line,
+                text=f"{SEV_NAME[sev]} · {typ} · {len(items)}건    예) {sample['line']}: {shown}",
+                text_color=TEXT, font=F(11), anchor="w").pack(side="left")
+        ctk.CTkFrame(card, fg_color="transparent", height=4).pack()
 
     # ── 파일/폴더 열기 ─────────────────────────────────────
     def _open_path(self, target):
@@ -463,7 +421,6 @@ class PIIScannerApp(ctk.CTk):
         if not os.path.isdir(folder):
             messagebox.showwarning("폴더 없음", f"폴더를 찾을 수 없습니다.\n\n{folder}")
             return
-        # Windows 탐색기는 파일을 선택한 채로 열 수 있음
         if sys.platform.startswith("win") and os.path.exists(path):
             try:
                 subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
@@ -471,6 +428,26 @@ class PIIScannerApp(ctk.CTk):
             except Exception:
                 pass
         self._open_path(folder)
+
+    # ── 내보내기 ──────────────────────────────────────────
+    def _export(self, kind):
+        if not self.results:
+            return
+        reveal = self.reveal_var.get()
+        if kind == "csv":
+            path = filedialog.asksaveasfilename(
+                defaultextension=".csv", filetypes=[("CSV", "*.csv")],
+                initialfile="개인정보_검출결과.csv")
+            if path:
+                write_csv(self.results, path, reveal)
+                messagebox.showinfo("완료", f"CSV 저장됨:\n{path}")
+        else:
+            path = filedialog.asksaveasfilename(
+                defaultextension=".html", filetypes=[("HTML", "*.html")],
+                initialfile="개인정보_검출결과.html")
+            if path:
+                write_html(self.results, self.skipped, path, reveal)
+                messagebox.showinfo("완료", f"HTML 저장됨:\n{path}")
 
     # ── 대상 폴더 선택 ─────────────────────────────────────
     def _browse_dest(self):
@@ -481,10 +458,10 @@ class PIIScannerApp(ctk.CTk):
 
     # ── 선택 / 이동 / 삭제 ─────────────────────────────────
     def _toggle_all(self):
-        """전체 선택 ↔ 선택 해제 토글 (버튼)."""
+        """전체 선택 ↔ 선택 해제 토글."""
         if not self.file_vars:
             return
-        select = not self.select_all_var.get()   # 현재 상태의 반대로
+        select = not self.select_all_var.get()
         self.select_all_var.set(select)
         for var in self.file_vars.values():
             var.set(select)
@@ -501,7 +478,6 @@ class PIIScannerApp(ctk.CTk):
         state = "normal" if n else "disabled"
         self.quar_btn.configure(state=state)
         self.delete_btn.configure(state=state)
-        # 개별 체크 변화에 따라 전체선택 버튼 라벨 동기화
         if total and n == total:
             self.select_all_var.set(True)
             self.select_all_btn.configure(text="선택 해제")
@@ -523,7 +499,6 @@ class PIIScannerApp(ctk.CTk):
 
         dest = self.dest_entry.get().strip()
         if dest:
-            # 지정한 별도 폴더로 이동 (없으면 생성)
             try:
                 os.makedirs(dest, exist_ok=True)
             except Exception as e:
@@ -560,14 +535,12 @@ class PIIScannerApp(ctk.CTk):
         paths = self._selected_paths()
         if not paths:
             return
-        # 1차 확인
         if not messagebox.askokcancel(
             "삭제 확인",
             f"선택한 {len(paths)}개 파일을 삭제합니다.\n"
             f"send2trash 가 설치돼 있으면 휴지통으로(복구 가능),\n"
             f"없으면 영구 삭제됩니다.\n\n계속하시겠습니까?"):
             return
-        # 2차 확인 (되돌릴 수 없는 작업이므로 한 번 더)
         if not messagebox.askyesno(
             "최종 확인",
             "정말로 삭제하시겠습니까?\n이 작업은 되돌리기 어려울 수 있습니다.",
