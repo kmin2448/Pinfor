@@ -1,0 +1,57 @@
+name: Build Windows EXE
+
+# 수동 실행, main 푸시, 또는 버전 태그(v*) 푸시 시 빌드
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "pii_scanner.py"
+      - "pii_scanner_gui.py"
+      - "pii_scanner.spec"
+      - "requirements.txt"
+      - ".github/workflows/build-exe.yml"
+
+permissions:
+  contents: write   # 태그 푸시 시 릴리스 생성용
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 소스 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: EXE 빌드
+        run: pyinstaller pii_scanner.spec --noconfirm
+
+      - name: 빌드 결과 확인
+        run: dir dist
+
+      # 1) Actions 아티팩트로 업로드 → Actions 실행 페이지에서 다운로드 가능
+      - name: 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: 개인정보검출스캐너-windows
+          path: dist/개인정보검출스캐너.exe
+          if-no-files-found: error
+
+      # 2) 버전 태그(v1.0.0 등) 푸시 시 → Releases 페이지에 exe 첨부
+      - name: 릴리스에 첨부
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/개인정보검출스캐너.exe

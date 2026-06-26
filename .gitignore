@@ -1,0 +1,19 @@
+# PyInstaller / 빌드 산출물
+build/
+dist/
+*.manifest
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 격리 폴더 (실행 중 생성)
+_PII_격리_*/
+
+# 리포트 산출물
+*.csv
+*.html
+!*.spec
