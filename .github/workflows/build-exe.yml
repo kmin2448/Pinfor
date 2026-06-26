@@ -1,17 +1,13 @@
 name: Build Windows EXE
 
-# 수동 실행, main 푸시, 또는 버전 태그(v*) 푸시 시 빌드
+# 수동 실행, 브랜치 푸시, 또는 버전 태그(v*) 푸시 시 빌드
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "claude/**"
     tags: ["v*"]
-    paths:
-      - "pii_scanner.py"
-      - "pii_scanner_gui.py"
-      - "pii_scanner.spec"
-      - "requirements.txt"
-      - ".github/workflows/build-exe.yml"
 
 permissions:
   contents: write   # 태그 푸시 시 릴리스 생성용
